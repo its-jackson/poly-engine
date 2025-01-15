@@ -5,13 +5,15 @@ import org.poly.engine.Game
 import org.poly.engine.GameObject
 
 class Renderer(
-    private val game: Game
+    private val game: Game,
+    private val maxBatchSize: Int = 1000
 ) {
-    private val maxBatchSize = 1000
     private val batches = mutableListOf<RenderBatch>()
 
     fun renderBatches() {
-        batches.forEach { it.render() }
+        batches.forEach {
+            it.render()
+        }
     }
 
     fun add(gameObject: GameObject) {
@@ -22,7 +24,7 @@ class Renderer(
         add(sprite)
     }
 
-    fun add(sprite: SpriteRenderer) {
+    private fun add(sprite: SpriteRenderer) {
         var added = false
 
         for (batch in batches) {

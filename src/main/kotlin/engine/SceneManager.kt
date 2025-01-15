@@ -3,26 +3,38 @@ package org.poly.engine
 class SceneManager {
     private val logger = Logger("Scene Manager")
 
-    var currentScene: Scene? = null
+    var activeScene: Scene? = null
         private set
 
+    var state: SceneState? = null
+        private set
+
+    fun reset() {
+        activeScene = null
+        state = null
+
+        logger.info("Reset: activeScene=$activeScene, state=$state")
+    }
+
     fun changeScene(
-        newScene: Scenes,
+        sceneState: SceneState,
         game: Game
     ) {
-        when (newScene) {
-            // TODO Maybe their is a better way instead of instantiating a new obj each time it changes
-            Scenes.LEVEL_EDITOR -> {
-                currentScene = LevelEditorScene(game)
-                currentScene!!.start()
-                logger.info("Changed to level editor scene")
-            }
+        logger.info("Switched to: $sceneState, from $state")
 
-            Scenes.LEVEL -> {
-                currentScene = LevelScene(game)
-                currentScene!!.start()
-                logger.info("Changed to level scene")
-            }
+        state = sceneState
+        activeScene = when (sceneState) {
+            SceneState.LEVEL_EDITOR -> LevelEditorScene(
+                game = game,
+                camera = Camera()
+            )
+
+            SceneState.LEVEL -> LevelScene(
+                game = game,
+                camera = Camera()
+            )
+        }.also {
+            it.start()
         }
     }
 }

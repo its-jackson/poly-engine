@@ -1,26 +1,26 @@
 package org.poly.renderer
 
 import org.lwjgl.opengl.GL30.*
+import org.lwjgl.system.MemoryUtil
 import org.poly.components.SpriteRenderer
 import org.poly.engine.Game
 import org.poly.engine.Startable
+import java.util.*
 
 class RenderBatch(
     private val game: Game,
     private val maxBatchSize: Int,
     private val shader: Shader = Shader.constructDefault()
 ) : Startable {
-    private val sprites: Array<SpriteRenderer?> = arrayOfNulls(maxBatchSize)
-
-    // 4 vertices quads
-    private val vertices: Array<Float?> = arrayOfNulls(maxBatchSize * 4 * VERTEX_SIZE)
-
-    private var numOfSprites = 0
-    var hasRoom = true
-        private set
-
     private var vaoID = -1
     private var vboID = -1
+    private var numOfSprites = 0
+
+    private val vertices = FloatArray(maxBatchSize * 4 * VERTEX_SIZE) // 4 vertices quads
+    private val sprites = arrayOfNulls<SpriteRenderer>(maxBatchSize)
+
+    var hasRoom = true
+        private set
 
     init {
         shader.compileAndLink(game)
@@ -28,35 +28,22 @@ class RenderBatch(
 
     fun addSprite(spriteRenderer: SpriteRenderer) {
         val index = numOfSprites
-        if (index >= maxBatchSize) {
-            hasRoom = false
-            return
-        }
-
         sprites[index] = spriteRenderer
         numOfSprites += 1
 
         val sprite = sprites[index] ?: return
-
         var offset = index * 4 * VERTEX_SIZE // (4 vertices per sprite)
         val colour = sprite.colour
 
-        // add vertices props
-        var xAdd = 1.0f
-        var yAdd = 1.0f
+        val xOffsets = arrayOf(1.0f, 1.0f, 0.0f, 0.0f)
+        val yOffsets = arrayOf(1.0f, 0.0f, 0.0f, 1.0f)
 
         for (i in 0 until 4) {
-            when (i) {
-                1 -> yAdd = 0.0f
-                2 -> xAdd = 0.0f
-                3 -> yAdd = 1.0f
-            }
-
-            // get position
             val gameObj = sprite.gameObject ?: return
             val transform = gameObj.transform
-            vertices[offset] = transform.position.x + (xAdd * transform.scale.x)
-            vertices[offset + 1] = transform.position.y + (yAdd * transform.scale.y)
+
+            vertices[offset + 0] = transform.position.x + (xOffsets[i] * transform.scale.x) // x
+            vertices[offset + 1] = transform.position.y + (yOffsets[i] * transform.scale.y) // y
 
             // get colour
             vertices[offset + 2] = colour.x
@@ -66,17 +53,32 @@ class RenderBatch(
 
             offset += VERTEX_SIZE
         }
+
+        if (numOfSprites >= maxBatchSize) {
+            hasRoom = false
+        }
     }
 
-    fun render() { // TODO Looking for a better way of doing this!
-        // Rebuffer all data every frame
+    fun render() {
+        // 1) Build a FloatBuffer for only the used portion
+        val usedFloats = numOfSprites * 4 * VERTEX_SIZE
+        val vertexBuffer = MemoryUtil.memAllocFloat(usedFloats)
+        vertexBuffer.put(vertices, 0, usedFloats)
+        vertexBuffer.flip()
+
+        // 2) Upload only the used portion
         glBindBuffer(GL_ARRAY_BUFFER, vboID)
-        glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.mapNotNull { it }.toFloatArray())
+        glBufferSubData(GL_ARRAY_BUFFER, 0, vertexBuffer)
+
+        MemoryUtil.memFree(vertexBuffer)
 
         // Shader gpu usage
+        val projMatrix = game.activeScene?.camera?.getProjectionMatrix() ?: return
+        val viewMatrix = game.activeScene?.camera?.getViewMatrix() ?: return
+
         shader.use()
-        shader.uploadMatrix4f("uProjection", game.camera.getProjectionMatrix())
-        shader.uploadMatrix4f("uView", game.camera.getViewMatrix())
+        shader.uploadMatrix4f("uProjection", projMatrix)
+        shader.uploadMatrix4f("uView", viewMatrix)
 
         glBindVertexArray(vaoID)
         glEnableVertexAttribArray(0)
@@ -116,40 +118,32 @@ class RenderBatch(
 
     private fun generateIndices(): IntArray {
         // 6 indices per quad (3 per triangle)
-        val elements: Array<Int?> = arrayOfNulls(maxBatchSize * 6)
+        val elements = IntArray(maxBatchSize * 6)
 
         for (i in 0 until maxBatchSize) {
             loadElementIndices(elements, i)
         }
 
-        return elements.mapNotNull { it }
-            .toIntArray()
+        return elements
     }
 
     private fun loadElementIndices(
-        elements: Array<Int?>,
+        elements: IntArray,
         index: Int
     ) {
+        // 3, 2, 0, 0, 2, 1      7, 6, 4, 4, 6, 5
         val offsetArrayIndex = 6 * index
         val offset = 4 * index
 
-        // 3, 2, 0, 0, 2, 1      7, 6, 4, 4, 6, 5
         // triangle 1
-        elements[offsetArrayIndex] = offset + 3
+        elements[offsetArrayIndex + 0] = offset + 3
         elements[offsetArrayIndex + 1] = offset + 2
         elements[offsetArrayIndex + 2] = offset + 0
+
         // triangle 2
         elements[offsetArrayIndex + 3] = offset + 0
         elements[offsetArrayIndex + 4] = offset + 2
         elements[offsetArrayIndex + 5] = offset + 1
-//        // triangle 3
-//        elements[offsetArrayIndex + 6] = offset + 7
-//        elements[offsetArrayIndex + 7] = offset + 6
-//        elements[offsetArrayIndex + 8] = offset + 4
-//        // triangle 4
-//        elements[offsetArrayIndex + 9] = offset + 4
-//        elements[offsetArrayIndex + 10] = offset + 6
-//        elements[offsetArrayIndex + 11] = offset + 5
     }
 
     private companion object {

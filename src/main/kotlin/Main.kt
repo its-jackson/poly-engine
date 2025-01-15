@@ -3,13 +3,19 @@ package org.poly
 import org.poly.engine.Game
 import org.poly.engine.GameState
 
-fun main() {
-    val gameState = GameState(
-        title = "Mario by Jackson",
+private var state: GameState? = null
+private var game: Game? = null
+
+fun main() = app()
+
+private fun app() {
+    state = GameState(
+        title = "Mario",
         width = 1280,
         height = 720
     )
 
-    val game = Game(gameState)
-    game.execute()
+    game = Game(state!!).also {
+        it.execute()
+    }
 }

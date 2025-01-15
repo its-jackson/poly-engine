@@ -2,17 +2,18 @@ package org.poly.engine
 
 import org.poly.renderer.Renderer
 
-enum class Scenes {
+enum class SceneState {
     LEVEL_EDITOR,
     LEVEL
 }
 
 abstract class Scene(
+    open val camera: Camera,
     private val game: Game,
     private val logger: Logger
 ) : Tickable, Startable {
-    val renderer = Renderer(game)
-    val gameObjects = mutableListOf<GameObject>()
+    protected val renderer = Renderer(game)
+    private val gameObjects = mutableListOf<GameObject>()
 
     var running = false
         private set
@@ -28,6 +29,10 @@ abstract class Scene(
         }
 
         running = true
+    }
+
+    fun tickGameObjects(dt: Float) = gameObjects.forEach {
+        it.tick(dt)
     }
 
     fun addGameObjectToScene(gameObject: GameObject) {

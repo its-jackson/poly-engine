@@ -1,11 +1,16 @@
 package org.poly.engine
 
+import org.joml.Vector2f
+import org.joml.Vector4f
+import org.poly.components.SpriteRenderer
 import java.awt.event.KeyEvent
 
 class LevelEditorScene(
+    override val camera: Camera,
     private val game: Game,
     private val logger: Logger = Logger("Level Editor Scene")
 ) : Scene(
+    camera,
     game,
     logger,
 ) {
@@ -14,12 +19,47 @@ class LevelEditorScene(
     private val fadeRate = 1.0f / TIME_TO_CHANGE_SCENE // Precompute fade rate
 
     init {
+        val xOffset = 10
+        val yOffset = 10
 
+        val totalWidth = (600 - xOffset * 2)
+        val totalHeight = (300 - yOffset * 2)
+        val sizeX = totalWidth / 100.0f
+        val sizeY = totalHeight / 100.0f
+
+        // 10,000 iterations
+        for (x in 1..100) {
+            for (y in 1..100) {
+                val xPos = xOffset + (x * sizeX)
+                val yPos = yOffset + (y * sizeY)
+
+                GameObject(
+                    name = "GameObject=$x, $y",
+                    transform = Transform(
+                        position = Vector2f(xPos, yPos),
+                        scale = Vector2f(sizeX, sizeY)
+                    )
+                ).also {
+                    it.addComponent(
+                        SpriteRenderer(
+                            Vector4f(
+                                xPos / totalWidth,
+                                yPos / totalHeight,
+                                1f,
+                                1f
+                            )
+                        )
+                    )
+                }.also {
+                    addGameObjectToScene(it)
+                }
+            }
+        }
     }
 
     override fun tick(dt: Float) {
-        // Update all game objects
-        gameObjects.forEach { it.tick(dt) }
+        tickGameObjects(dt)
+        renderer.renderBatches()
 
         // Set the changing scene var to true when triggered
         if (!changingScene && KeyListening.isKeyPressed(KeyEvent.VK_SPACE)) {
@@ -44,7 +84,7 @@ class LevelEditorScene(
     private fun resetScene() {
         changingScene = false
         timeToChangeScene = TIME_TO_CHANGE_SCENE
-        game.sceneManager.changeScene(Scenes.LEVEL, game)
+        game.sceneManager.changeScene(SceneState.LEVEL, game)
         game.state.r = 1.0f
         game.state.g = 1.0f
         game.state.b = 1.0f

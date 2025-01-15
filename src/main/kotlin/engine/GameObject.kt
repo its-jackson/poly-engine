@@ -1,6 +1,6 @@
 package org.poly.engine
 
-class GameObject(
+data class GameObject(
     val name: String,
     val transform: Transform = Transform(),
     private val components: MutableMap<Class<out Component>, MutableSet<Component>> = mutableMapOf()

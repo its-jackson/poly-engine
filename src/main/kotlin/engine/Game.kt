@@ -31,13 +31,14 @@ data class GameState(
 class Game(
     val state: GameState,
     val sceneManager: SceneManager = SceneManager(),
-    val camera: Camera = Camera(),
 ) {
-    private val logger: Logger = Logger("Game")
+    private val logger: Logger = Logger(state.title)
     private var handle: Long = NULL
     private var cursor: Long = NULL
 
-    fun getScene() = sceneManager.currentScene
+    val activeScene
+        get() =
+            sceneManager.activeScene
 
     fun terminate() {
         state.terminate = true
@@ -99,7 +100,7 @@ class Game(
             glfwSetWindowPos(
                 handle,
                 (vidmode!!.width() - pWidth[0]) / 2,
-                (vidmode!!.height() - pHeight[0]) / 2
+                (vidmode.height() - pHeight[0]) / 2
             )
         }
 
@@ -124,9 +125,14 @@ class Game(
         GL.createCapabilities()
 
         // Set the games scene to the level editor on start-up
-        sceneManager.changeScene(Scenes.LEVEL_EDITOR, this)
+        sceneManager.changeScene(SceneState.LEVEL_EDITOR, this)
     }
 
+    // Proper Rendering Order:
+    //  1. Clear the framebuffer.
+    //  2. Set up any necessary state for rendering (e.g., binding shaders, VAOs).
+    //  3. Render the scene.
+    //  4. Swap buffers to display the rendered frame.
     private fun loop() {
         var startTime = nanoTime()
 
@@ -139,17 +145,12 @@ class Game(
             state.frameCount++
             state.elapsedTime += state.dt
 
-            // Proper Rendering Order:
-            //  1. Clear the framebuffer.
-            //  2. Set up any necessary state for rendering (e.g., binding shaders, VAOs).
-            //  3. Render your scene.
-            //  4. Swap buffers to display the rendered frame.
             // Clear the framebuffer before updating the scene
             glClearColor(state.r, state.g, state.b, state.a)
             // Clear both color and depth buffers
             glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
             // Tick the current scene (render graphics, etc)
-            sceneManager.currentScene?.tick(state.dt)
+            sceneManager.activeScene?.tick(state.dt)
             // Swap the color buffers
             glfwSwapBuffers(handle)
 
