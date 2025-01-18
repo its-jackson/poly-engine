@@ -5,12 +5,11 @@ import org.lwjgl.system.MemoryUtil
 import org.poly.components.SpriteRenderer
 import org.poly.engine.Game
 import org.poly.engine.Startable
-import java.util.*
 
 class RenderBatch(
     private val game: Game,
     private val maxBatchSize: Int,
-    private val shader: Shader = Shader.constructDefault()
+    private val shader: Shader = game.findShader("assets/shaders/default.glsl")
 ) : Startable {
     private var vaoID = -1
     private var vboID = -1

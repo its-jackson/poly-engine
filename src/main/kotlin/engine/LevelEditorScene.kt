@@ -27,7 +27,7 @@ class LevelEditorScene(
         val sizeX = totalWidth / 100.0f
         val sizeY = totalHeight / 100.0f
 
-        // 10,000 iterations
+        // instantiate 10,000 game objects
         for (x in 1..100) {
             for (y in 1..100) {
                 val xPos = xOffset + (x * sizeX)
@@ -74,6 +74,10 @@ class LevelEditorScene(
         }
     }
 
+    private fun loadResources() {
+        val shader = game.findShader("assets/shaders.default.glsl")
+    }
+
     private fun fadeToBlack(dt: Float) {
         timeToChangeScene -= dt
         game.state.r = (game.state.r - dt * fadeRate).coerceAtLeast(0.0f)
@@ -84,7 +88,7 @@ class LevelEditorScene(
     private fun resetScene() {
         changingScene = false
         timeToChangeScene = TIME_TO_CHANGE_SCENE
-        game.sceneManager.changeScene(SceneState.LEVEL, game)
+        game.changeScene(SceneState.LEVEL)
         game.state.r = 1.0f
         game.state.g = 1.0f
         game.state.b = 1.0f

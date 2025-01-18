@@ -10,7 +10,7 @@ class Camera(
     private val projectionMatrix: Matrix4f = Matrix4f()
     private val viewMatrix: Matrix4f = Matrix4f()
 
-    // Screen dimensions (make this configurable)
+    // TODO Screen dimensions (make this configurable)
     private val screenWidth: Float = 32.0f * 40.0f
     private val screenHeight: Float = 32.0f * 21.0f
 

@@ -173,8 +173,6 @@ class Shader(
     }
 
     private fun compile(game: Game) {
-        logger.info("Compiling shaders")
-
         vertexID = compileShader(
             type = GL_VERTEX_SHADER,
             source = vertexSrc,
@@ -191,8 +189,6 @@ class Shader(
     }
 
     private fun link(game: Game) {
-        logger.info("Linking shaders")
-
         shaderProgramID = createShaderProgram(
             vertexShaderID = vertexID,
             fragmentShaderID = fragmentID,
@@ -240,12 +236,5 @@ class Shader(
             game.terminate()
         }
         return programID
-    }
-
-    companion object {
-
-        fun constructDefault(): Shader {
-            return Shader("assets/shaders/default.glsl")
-        }
     }
 }

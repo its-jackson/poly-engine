@@ -8,6 +8,8 @@ import org.lwjgl.opengl.GL
 import org.lwjgl.opengl.GL11.*
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.NULL
+import org.poly.renderer.Shader
+import org.poly.renderer.Texture
 import java.lang.System.nanoTime
 
 data class GameState(
@@ -28,17 +30,38 @@ data class GameState(
     var a: Float = 1.0f,
 )
 
+interface GameLifeCycle {
+    fun init(game: Game) // Called after window creation
+    fun tick(game: Game) // The main loop logic
+    fun cleanup(game: Game)  // Called once the game is terminated
+}
+
+// TODO Make the managers implement on interfaces to allow different compositions of games
 class Game(
     val state: GameState,
-    val sceneManager: SceneManager = SceneManager(),
+    private val lifeCycle: GameLifeCycle,
+    private val sceneManager: SceneManager = SceneManager(),
+    private val resourceManager: ResourceManager = ResourceManager(),
+    private val logger: Logger = Logger(state.title),
 ) {
-    private val logger: Logger = Logger(state.title)
     private var handle: Long = NULL
     private var cursor: Long = NULL
 
     val activeScene
         get() =
             sceneManager.activeScene
+
+    fun changeScene(sceneState: SceneState) {
+        sceneManager.changeScene(sceneState, this)
+    }
+
+    fun findShader(resourceName: String): Shader {
+        return resourceManager.findShader(resourceName, this)
+    }
+
+    fun findTexture(resourceName: String): Texture {
+        return resourceManager.findTexture(resourceName)
+    }
 
     fun terminate() {
         state.terminate = true
@@ -47,7 +70,7 @@ class Game(
     fun execute() {
         init()
         loop()
-        end()
+        cleanup()
     }
 
     private fun init() {
@@ -124,8 +147,8 @@ class Game(
         // bindings available for use.
         GL.createCapabilities()
 
-        // Set the games scene to the level editor on start-up
-        sceneManager.changeScene(SceneState.LEVEL_EDITOR, this)
+        //
+        lifeCycle.init(this)
     }
 
     // Proper Rendering Order:
@@ -159,16 +182,19 @@ class Game(
                 state.elapsedTime = 0.0f
             }
 
-            if (state.terminate || KeyListening.isKeyPressed(GLFW_KEY_ESCAPE)) {
+            if (state.terminate) {
                 glfwSetWindowShouldClose(handle, true)
                 return
             }
 
             glfwPollEvents()
+
+            //
+            lifeCycle.tick(this)
         }
     }
 
-    private fun end() {
+    private fun cleanup() {
         // Free the window callbacks and destroy the window
         glfwFreeCallbacks(handle)
         glfwDestroyWindow(handle)
@@ -177,5 +203,8 @@ class Game(
         // Terminate GLFW and free the error callback
         glfwTerminate()
         glfwSetErrorCallback(null)?.free()
+
+        //
+        lifeCycle.cleanup(this)
     }
 }
