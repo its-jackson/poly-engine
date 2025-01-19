@@ -5,6 +5,7 @@ import org.lwjgl.system.MemoryUtil
 import org.poly.components.SpriteRenderer
 import org.poly.engine.Game
 import org.poly.engine.Startable
+import renderer.Shader
 
 class RenderBatch(
     private val game: Game,

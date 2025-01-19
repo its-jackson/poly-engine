@@ -1,17 +1,94 @@
-package org.poly.renderer
+package renderer
 
 import org.joml.*
 import org.lwjgl.BufferUtils.createFloatBuffer
+import org.lwjgl.BufferUtils.createIntBuffer
 import org.lwjgl.opengl.GL30.*
+import org.lwjgl.stb.STBImage.stbi_image_free
+import org.lwjgl.stb.STBImage.stbi_load
 import org.poly.engine.Game
 import org.poly.engine.Logger
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Paths
 
-class Shader(
-    private val filePath: String
-) {
+sealed interface Disposable {
+    fun dispose()
+}
+
+sealed class Resource(val path: String) : Disposable
+
+class Texture(private val filePath: String) : Resource(filePath) {
+    private var texID: Int = 0
+
+    override fun dispose() {
+        unbind()
+    }
+
+    init {
+        // Generate texture
+        texID = glGenTextures()
+        glBindTexture(GL_TEXTURE_2D, texID)
+
+        // Set texture params and repeat img both directions
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
+
+        // Pixelate when stretching img
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+
+        // Pixelate when shrinking img
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+
+        val width = createIntBuffer(1)
+        val height = createIntBuffer(1)
+        val channels = createIntBuffer(1)
+        val image = stbi_load(filePath, width, height, channels, 0)
+
+        if (image != null) {
+            when {
+                channels.get(0) == 3 -> {
+                    glTexImage2D(
+                        GL_TEXTURE_2D,
+                        0,
+                        GL_RGB, // No alpha value
+                        width.get(0),
+                        height.get(0),
+                        0,
+                        GL_RGB, // No alpha value
+                        GL_UNSIGNED_BYTE,
+                        image
+                    )
+                }
+                channels.get(0) == 4 -> {
+                    glTexImage2D(
+                        GL_TEXTURE_2D,
+                        0,
+                        GL_RGBA,
+                        width.get(0),
+                        height.get(0),
+                        0,
+                        GL_RGBA,
+                        GL_UNSIGNED_BYTE,
+                        image
+                    )
+                }
+            }
+
+            stbi_image_free(image)
+        }
+    }
+
+    fun bind() {
+        glBindTexture(GL_TEXTURE_2D, texID)
+    }
+
+    fun unbind() {
+        glBindTexture(GL_TEXTURE_2D, 0)
+    }
+}
+
+class Shader(private val filePath: String) : Resource(filePath) {
     private val logger = Logger("Shader")
 
     private var shaderProgramID = 0
@@ -20,6 +97,10 @@ class Shader(
     private var vertexSrc = ""
     private var fragmentSrc = ""
     private var active = false
+
+    override fun dispose() {
+        detach()
+    }
 
     init {
         try {

@@ -8,8 +8,8 @@ import org.lwjgl.opengl.GL
 import org.lwjgl.opengl.GL11.*
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.NULL
-import org.poly.renderer.Shader
-import org.poly.renderer.Texture
+import renderer.Shader
+import renderer.Texture
 import java.lang.System.nanoTime
 
 data class GameState(
@@ -42,8 +42,9 @@ class Game(
     private val lifeCycle: GameLifeCycle,
     private val sceneManager: SceneManager = SceneManager(),
     private val resourceManager: ResourceManager = ResourceManager(),
-    private val logger: Logger = Logger(state.title),
 ) {
+    val logger: Logger = Logger(state.title)
+
     private var handle: Long = NULL
     private var cursor: Long = NULL
 
@@ -56,11 +57,11 @@ class Game(
     }
 
     fun findShader(resourceName: String): Shader {
-        return resourceManager.findShader(resourceName, this)
+        return resourceManager.getOrLoad(resourceName, Shader::class, this)
     }
 
     fun findTexture(resourceName: String): Texture {
-        return resourceManager.findTexture(resourceName)
+        return resourceManager.getOrLoad(resourceName, Texture::class, this)
     }
 
     fun terminate() {
@@ -96,8 +97,8 @@ class Game(
         if (handle == NULL) throw RuntimeException("Failed to create the GLFW window")
 
         // Create the custom cursor
-        cursor = glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR)
-        if (cursor == NULL) throw RuntimeException("Failed to create the GLFW cursor")
+        //cursor = glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR)
+        //if (cursor == NULL) throw RuntimeException("Failed to create the GLFW cursor")
 
         // Set mouse cursor pos callback
         glfwSetCursorPosCallback(handle, MouseListening::cursorPositionCallback)
@@ -138,7 +139,7 @@ class Game(
 
         // Set custom cursor
         // glfwSetCursor(handle, NULL)
-        glfwSetCursor(handle, cursor)
+        // glfwSetCursor(handle, cursor)
 
         // This line is critical for LWJGL's interoperation with GLFW's
         // OpenGL context, or any context that is managed externally.
@@ -147,7 +148,6 @@ class Game(
         // bindings available for use.
         GL.createCapabilities()
 
-        //
         lifeCycle.init(this)
     }
 
@@ -177,6 +177,7 @@ class Game(
             // Swap the color buffers
             glfwSwapBuffers(handle)
 
+            // One second has passed
             if (state.elapsedTime >= 1.0) {
                 state.frameCount = 0
                 state.elapsedTime = 0.0f
@@ -188,8 +189,6 @@ class Game(
             }
 
             glfwPollEvents()
-
-            //
             lifeCycle.tick(this)
         }
     }
@@ -198,13 +197,16 @@ class Game(
         // Free the window callbacks and destroy the window
         glfwFreeCallbacks(handle)
         glfwDestroyWindow(handle)
-        glfwDestroyCursor(cursor)
+        //glfwDestroyCursor(cursor)
 
         // Terminate GLFW and free the error callback
         glfwTerminate()
         glfwSetErrorCallback(null)?.free()
 
-        //
+        // Free shaders and loaders
+        resourceManager.freeResources()
+        resourceManager.freeLoaders()
+
         lifeCycle.cleanup(this)
     }
 }
